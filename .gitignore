@@ -1,0 +1,31 @@
+# --- Python virtual environment ---
+surgeon_env/
+.venv/
+venv/
+env/
+
+# --- Python cache / compiled files ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Packaging / build artifacts ---
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Logs ---
+*.log
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
