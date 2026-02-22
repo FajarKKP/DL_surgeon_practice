@@ -128,7 +128,7 @@ class Cnn3(nn.Module):
 # Train
 def train_model(model):
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr_initial)
+    optimizer = optim.Adam(model.parameters(), lr=lr_initial, weight_decay=5e-4)
 
     for epoch in range(epochs_initial):
         model.train()
@@ -195,15 +195,15 @@ def evaluate_model(model, name):
 # Run Baseline
 # ----------------------------
 if __name__ == "__main__":
-    # print("=== BASELINE MODEL ===")
-    # baseline1 = Cnn1(32, 64, 64, 128, 128, 256).to(device)
-    # train_model(baseline1)
-    # evaluate_model(baseline1, "Baseline1")
-
     print("=== BASELINE MODEL ===")
-    baseline2 = Cnn2(32, 64, 64, 128, 128, 256).to(device)
-    train_model(baseline2)
-    evaluate_model(baseline2, "Baseline2")
+    baseline1 = Cnn1(32, 64, 64, 128, 128, 256).to(device)
+    train_model(baseline1)
+    evaluate_model(baseline1, "Baseline1")
+
+    # print("=== BASELINE MODEL ===")
+    # baseline2 = Cnn2(32, 64, 64, 128, 128, 256).to(device)
+    # train_model(baseline2)
+    # evaluate_model(baseline2, "Baseline2")
 
     print("=== BASELINE MODEL ===")
     baseline3 = Cnn3(32, 64, 64, 128, 128, 256).to(device)
