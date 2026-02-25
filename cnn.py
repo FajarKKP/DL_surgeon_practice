@@ -74,7 +74,7 @@ testloader = torch.utils.data.DataLoader(
 # ----------------------------
 # CNN Model (Stride variant)
 # ----------------------------
-class CnnStride(nn.Module):
+class CnnStride1(nn.Module):
     def __init__(self, c1, c2, c3, c4, c5, c6):
         super().__init__()
         self.features = nn.Sequential(
@@ -84,7 +84,7 @@ class CnnStride(nn.Module):
             nn.Conv2d(c1, c2, 3, padding=1),
             nn.BatchNorm2d(c2),
             nn.ReLU(),
-            nn.Conv2d(c2, c2, 3, stride=2, padding=1),  # stride 2
+            nn.MaxPool2d(2),
 
             nn.Conv2d(c2, c3, 3, padding=1),
             nn.BatchNorm2d(c3),
@@ -95,7 +95,7 @@ class CnnStride(nn.Module):
             nn.Conv2d(c4, c5, 3, padding=1),
             nn.BatchNorm2d(c5),
             nn.ReLU(),
-            nn.Conv2d(c5, c5, 3, stride=2, padding=1),  # stride 2
+            nn.MaxPool2d(2),
 
             nn.Conv2d(c5, c6, 3, padding=1),
             nn.BatchNorm2d(c6),
@@ -103,6 +103,65 @@ class CnnStride(nn.Module):
             nn.AdaptiveAvgPool2d(1)
         )
         self.classifier = nn.Linear(c6, 10)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
+
+
+class CnnStride2(nn.Module):
+    def __init__(self, c1, c2, c3, c4, c5, c6,
+                 c7, c8, c9, c10, c11, c12):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, c1, 3, padding=1),
+            nn.BatchNorm2d(c1),
+            nn.ReLU(),
+            nn.Conv2d(c1, c2, 3, padding=1),
+            nn.BatchNorm2d(c2),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(c2, c3, 3, padding=1),
+            nn.BatchNorm2d(c3),
+            nn.ReLU(),
+            nn.Conv2d(c3, c4, 3, padding=1),
+            nn.BatchNorm2d(c4),
+            nn.ReLU(),
+            nn.Conv2d(c4, c5, 3, padding=1),
+            nn.BatchNorm2d(c5),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(c5, c6, 3, padding=1),
+            nn.BatchNorm2d(c6),
+            nn.ReLU(),
+
+            nn.Conv2d(c7, c8, 3, padding=1),
+            nn.BatchNorm2d(c8),
+            nn.ReLU(),
+            nn.Conv2d(c8, c9, 3, padding=1),
+            nn.BatchNorm2d(c9),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(c9, c10, 3, padding=1),
+            nn.BatchNorm2d(c10),
+            nn.ReLU(),
+            nn.Conv2d(c10, c11, 3, padding=1),
+            nn.BatchNorm2d(c11),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(c11, c12, 3, padding=1),
+            nn.BatchNorm2d(c12),
+            nn.ReLU(),
+
+            nn.AdaptiveAvgPool2d(1)
+        )
+        self.classifier = nn.Linear(c12, 10)
 
     def forward(self, x):
         x = self.features(x)
@@ -199,6 +258,10 @@ def evaluate_model(model, name):
 # Main
 # ----------------------------
 if __name__ == "__main__":
-    model = CnnStride(32, 64, 64, 128, 128, 256)
-    train_model(model)
-    evaluate_model(model, "Stride Model")
+    model1 = CnnStride1(32, 64, 64, 128, 128, 256)
+    train_model(model1)
+    evaluate_model(model1, "Stride Model")
+
+    # model2 = CnnStride2(32, 32, 64, 64, 128, 128, 128, 128, 256,256, 512,512)
+    # train_model(model2)
+    # evaluate_model(model2, "Stride Model")
