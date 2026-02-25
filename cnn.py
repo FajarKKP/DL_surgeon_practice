@@ -1,4 +1,4 @@
-import torch 
+import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
@@ -6,15 +6,33 @@ import torchvision.transforms as transforms
 import time
 from ptflops import get_model_complexity_info
 
+# ----------------------------
+# Device
+# ----------------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 
-batch_size_initial = 128
-epochs_initial = 15
-lr_initial = 0.001
+# ----------------------------
+# Reproducibility
+# ----------------------------
+torch.manual_seed(42)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
+# ----------------------------
+# Hyperparameters
+# ----------------------------
+batch_size = 256
+epochs = 15
+lr = 0.001
+weight_decay = 5e-4
+
+# ----------------------------
+# Transforms
+# ----------------------------
 transform_train = transforms.Compose([
     transforms.RandomHorizontalFlip(),
-    transforms.RandomCrop(32, padding  = 4),
+    transforms.RandomCrop(32, padding=4),
     transforms.ToTensor(),
 ])
 
@@ -22,202 +40,165 @@ transform_test = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_test)
-trainloader = torch.utils.data.DataLoader(trainset,batch_size=batch_size_initial, shuffle = True, num_workers= 0)
+# ----------------------------
+# Dataset & Loader
+# ----------------------------
+trainset = torchvision.datasets.CIFAR10(
+    root='./data',
+    train=True,
+    download=True,
+    transform=transform_train
+)
+trainloader = torch.utils.data.DataLoader(
+    trainset,
+    batch_size=batch_size,
+    shuffle=True,
+    num_workers=0,
+    pin_memory=True
+)
 
-testset = torchvision.datasets.CIFAR10(root='./data', train=False, download = True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size= batch_size_initial, shuffle = False, num_workers= 0)
+testset = torchvision.datasets.CIFAR10(
+    root='./data',
+    train=False,
+    download=True,
+    transform=transform_test
+)
+testloader = torch.utils.data.DataLoader(
+    testset,
+    batch_size=batch_size,
+    shuffle=False,
+    num_workers=0,
+    pin_memory=True
+)
 
-# Models
-class Cnn1(nn.Module):
-    def __init__(self, c1,c2,c3,c4,c5,c6):
-        super(Cnn1, self).__init__()
+# ----------------------------
+# CNN Model (Stride variant)
+# ----------------------------
+class CnnStride(nn.Module):
+    def __init__(self, c1, c2, c3, c4, c5, c6):
+        super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(3,c1, kernel_size=3, padding=1),
+            nn.Conv2d(3, c1, 3, padding=1),
+            nn.BatchNorm2d(c1),
             nn.ReLU(),
-            nn.Conv2d(c1, c2, kernel_size=3, padding=1),
+            nn.Conv2d(c1, c2, 3, padding=1),
+            nn.BatchNorm2d(c2),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.Conv2d(c2, c2, 3, stride=2, padding=1),  # stride 2
 
-            nn.Conv2d(c2,c3, kernel_size=3, padding=1),
+            nn.Conv2d(c2, c3, 3, padding=1),
+            nn.BatchNorm2d(c3),
             nn.ReLU(),
-            nn.Conv2d(c3,c4, kernel_size=3, padding=1),
+            nn.Conv2d(c3, c4, 3, padding=1),
+            nn.BatchNorm2d(c4),
             nn.ReLU(),
-            nn.Conv2d(c4, c5, kernel_size=3, padding=1),
+            nn.Conv2d(c4, c5, 3, padding=1),
+            nn.BatchNorm2d(c5),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.Conv2d(c5, c5, 3, stride=2, padding=1),  # stride 2
 
-            nn.Conv2d(c5,c6, kernel_size=3, padding=1),
+            nn.Conv2d(c5, c6, 3, padding=1),
+            nn.BatchNorm2d(c6),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d(1)
         )
-
         self.classifier = nn.Linear(c6, 10)
 
     def forward(self, x):
         x = self.features(x)
-        x = torch.flatten(x,1)
+        x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
 
-class Cnn2(nn.Module):
-    def __init__(self, c1,c2,c3,c4,c5,c6):
-        super(Cnn2, self).__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(3,c1, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c1, c2, kernel_size=3, padding=1),
-            nn.ReLU(),
-            # nn.MaxPool2d(2),
-
-            nn.Conv2d(c2,c3, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c3,c4, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c4, c5, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c5, c5, kernel_size=3, stride = 2, padding=1),
-
-            nn.Conv2d(c5,c6, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1)
-        )
-
-        self.classifier = nn.Linear(c6, 10)
-
-    def forward(self, x):
-        x = self.features(x)
-        x = torch.flatten(x,1)
-        x = self.classifier(x)
-        return x
-
-class Cnn3(nn.Module):
-    def __init__(self, c1,c2,c3,c4,c5,c6):
-        super(Cnn3, self).__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(3,c1, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c1, c2, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c2, c2, kernel_size=3, stride = 2, padding=1),
-
-            nn.Conv2d(c2,c3, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c3,c4, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c4, c5, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(c5, c5, kernel_size=3, stride = 2, padding=1),
-
-            nn.Conv2d(c5,c6, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1)
-        )
-
-        self.classifier = nn.Linear(c6, 10)
-
-    def forward(self, x):
-        x = self.features(x)
-        x = torch.flatten(x,1)
-        x = self.classifier(x)
-        return x
-
-
-
-
-# Train
+# ----------------------------
+# Train Function
+# ----------------------------
 def train_model(model):
+    model.to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr_initial, weight_decay=5e-4)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-    for epoch in range(epochs_initial):
+    for epoch in range(epochs):
+        start_time = time.time()
+
+        # Train
         model.train()
-        running_loss = 0.0
         correct = 0
         total = 0
-
+        # running_loss = 0.0
         for inputs, labels in trainloader:
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
+            # for name, param in model.named_parameters():
+            #     if param.grad is not None:
+            #         print(name, param.grad.abs().mean())
             optimizer.step()
 
-            running_loss += loss.item()
+            # running_loss += loss.item()
+
             _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
 
         train_acc = 100. * correct / total
+        # print(("Epoch loss:", running_loss / len(trainloader)))
 
+        # Validation
         model.eval()
         correct = 0
         total = 0
         with torch.no_grad():
             for inputs, labels in testloader:
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
                 outputs = model(inputs)
                 _, predicted = outputs.max(1)
                 total += labels.size(0)
                 correct += predicted.eq(labels).sum().item()
 
         val_acc = 100. * correct / total
+        epoch_time = time.time() - start_time
 
-        print(f"Epoch {epoch+1}/{epochs_initial} | Train Acc: {train_acc:.2f}% | Val Acc: {val_acc:.2f}%")
+        print(f"Epoch {epoch+1}/{epochs} | "
+              f"Train Acc: {train_acc:.2f}% | "
+              f"Val Acc: {val_acc:.2f}% | "
+              f"Time: {epoch_time:.2f}s")
 
 # ----------------------------
-# Evaluation Metrics
+# Evaluation Function
 # ----------------------------
 def evaluate_model(model, name):
     model.eval()
     total_params = sum(p.numel() for p in model.parameters())
     print(f"\n{name} Parameters: {total_params:,}")
 
-    # FLOPs
-    with torch.cuda.device(0) if torch.cuda.is_available() else torch.device("cpu"):
-        macs, params = get_model_complexity_info(
-            model, (3, 32, 32), as_strings=True,
-            print_per_layer_stat=False, verbose=False)
-        print(f"{name} FLOPs: {macs}")
+    macs, _ = get_model_complexity_info(
+        model,
+        (3, 32, 32),
+        as_strings=True,
+        print_per_layer_stat=False,
+        verbose=False
+    )
+    print(f"{name} FLOPs: {macs}")
 
-    # Inference time
     dummy = torch.randn(1, 3, 32, 32).to(device)
-    start = time.time()
-    for _ in range(100):
-        _ = model(dummy)
-    end = time.time()
-
+    with torch.no_grad():
+        start = time.time()
+        for _ in range(100):
+            _ = model(dummy)
+        end = time.time()
     print(f"{name} Avg Inference Time (100 runs): {(end - start)/100:.6f} sec")
 
 # ----------------------------
-# Run Baseline
+# Main
 # ----------------------------
 if __name__ == "__main__":
-    print("=== BASELINE MODEL ===")
-    baseline1 = Cnn1(32, 64, 64, 128, 128, 256).to(device)
-    train_model(baseline1)
-    evaluate_model(baseline1, "Baseline1")
-
-    # print("=== BASELINE MODEL ===")
-    # baseline2 = Cnn2(32, 64, 64, 128, 128, 256).to(device)
-    # train_model(baseline2)
-    # evaluate_model(baseline2, "Baseline2")
-
-    print("=== BASELINE MODEL ===")
-    baseline3 = Cnn3(32, 64, 64, 128, 128, 256).to(device)
-    train_model(baseline3)
-    evaluate_model(baseline3, "Baseline3")
-
-    # print("\n=== DOUBLE WIDTH MODEL ===")
-    # double_width = Cnn(64, 128, 256).to(device)
-    # train_model(double_width)
-    # evaluate_model(double_width, "Double Width")
-
-    # print("=== ANOTHER MODEL ===")
-    # another_baseline = Cnn(32, 32, 64, 64, 128, 256).to(device)
-    # train_model(another_baseline)
-    # evaluate_model(another_baseline, "Another Baseline")
-
-
+    model = CnnStride(32, 64, 64, 128, 128, 256)
+    train_model(model)
+    evaluate_model(model, "Stride Model")
